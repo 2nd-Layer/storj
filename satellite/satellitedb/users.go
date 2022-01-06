@@ -6,7 +6,9 @@ package satellitedb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/zeebo/errs"
 
@@ -73,6 +75,36 @@ func (users *users) GetByEmail(ctx context.Context, email string) (_ *console.Us
 	}
 
 	return userFromDBX(ctx, user)
+}
+
+// GetUser returns User by id.
+func (users *users) GetUnverifiedNeedingReminder(ctx context.Context, currentTime time.Time) (unverified []*console.User, err error) {
+	defer mon.Task()(&ctx)(&err)
+
+	// nextFullDay := currentTime.Add(time.Hour * 0)
+	// fiveDaysTime := currentTime.Add(time.Hour * 120)
+	previousDay := dbx.User_LastVerificationReminder(currentTime)
+	fmt.Println("TIME:", previousDay)
+
+	usersDbx, err := users.db.All_User_By_Status_Equal_Number_And_LastVerificationReminder_Less(ctx, previousDay)
+	fmt.Println("USERS DB:", usersDbx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var errors errs.Group
+	for _, userDbx := range usersDbx {
+		u, err := userFromDBX(ctx, userDbx)
+
+		unverified = append(unverified, u)
+		if err != nil {
+			errors.Add(err)
+			continue
+		}
+	}
+
+	return unverified, nil
 }
 
 // Insert is a method for inserting user into the database.

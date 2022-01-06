@@ -319,6 +319,11 @@ read all (
     select user
     where user.normalized_email = ?
 )
+read all (
+    select user
+    where user.status = 0
+    where user.last_verification_reminder < ?
+)
 read one (
     select user
     where user.normalized_email = ?
